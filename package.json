@@ -1,0 +1,106 @@
+{
+  "name": "universal-business-ledger",
+  "version": "0.1.0",
+  "description": "A universal, append-only event-sourced ledger for modeling any business domain. Built on the philosophy that all relationships are agreements.",
+  "type": "module",
+  "main": "dist/core/index.js",
+  "types": "dist/core/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/core/index.js",
+      "types": "./dist/core/index.d.ts"
+    },
+    "./sdk": {
+      "import": "./dist/sdk/index.js",
+      "types": "./dist/sdk/index.d.ts"
+    },
+    "./antenna": {
+      "import": "./dist/antenna/index.js",
+      "types": "./dist/antenna/index.d.ts"
+    }
+  },
+  "bin": {
+    "ledger": "dist/cli/ledger.js",
+    "migrate": "dist/cli/migrate.js"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "build:tsc": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/antenna/server.js",
+    "worker": "node dist/workers/job-processor.js",
+    "migrate": "node dist/cli/migrate.js",
+    "migrate:full": "node dist/cli/migrate.js --full-schema",
+    "db:migrate": "node dist/cli/db-migrate.js",
+    "db:migrate:full": "node dist/cli/db-migrate.js --full-schema",
+    "db:status": "node dist/cli/db-status.js",
+    "db:reset": "node dist/cli/db-reset.js",
+    "db:validate": "node dist/cli/db-status.js",
+    "cli": "node dist/cli/ledger.js",
+    "test": "node --test --import tsx/esm tests/foundation/**/*.test.ts tests/business/**/*.test.ts",
+    "test:foundation": "node --test --import tsx/esm tests/foundation/**/*.test.ts",
+    "test:business": "node --test --import tsx/esm tests/business/**/*.test.ts",
+    "test:invariants": "node --test --import tsx/esm tests/foundation/invariants/**/*.test.ts",
+    "test:attacks": "node --test --import tsx/esm tests/foundation/attacks/**/*.test.ts",
+    "test:chaos": "node --test --import tsx/esm tests/foundation/chaos/**/*.test.ts",
+    "test:fuzz": "node --test --import tsx/esm tests/foundation/fuzzing/**/*.test.ts",
+    "test:load": "node --test --import tsx/esm tests/foundation/load/**/*.test.ts",
+    "test:api": "node --test --import tsx/esm tests/foundation/api/**/*.test.ts",
+    "test:agreements": "node --test --import tsx/esm tests/business/agreements/**/*.test.ts",
+    "test:auth": "node --test --import tsx/esm tests/business/authorization/**/*.test.ts",
+    "test:containers": "node --test --import tsx/esm tests/business/containers/**/*.test.ts",
+    "test:temporal": "node --test --import tsx/esm tests/business/temporal/**/*.test.ts",
+    "test:compliance": "node --test --import tsx/esm tests/business/compliance/**/*.test.ts",
+    "test:watch": "node --test --watch --import tsx/esm tests/foundation/**/*.test.ts tests/business/**/*.test.ts",
+    "test:coverage": "c8 node --test --import tsx/esm tests/foundation/**/*.test.ts tests/business/**/*.test.ts"
+  },
+  "keywords": [
+    "event-sourcing",
+    "cqrs",
+    "ledger",
+    "audit",
+    "immutable",
+    "multi-tenant",
+    "workflow",
+    "agreement",
+    "contract",
+    "ddd",
+    "domain-driven-design",
+    "temporal",
+    "append-only",
+    "universal"
+  ],
+  "author": "Daniel Voulez",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danvoulez/Universal-Business-Ledger.git"
+  },
+  "bugs": {
+    "url": "https://github.com/danvoulez/Universal-Business-Ledger/issues"
+  },
+  "homepage": "https://github.com/danvoulez/Universal-Business-Ledger#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20.10.0",
+    "c8": "^8.0.1",
+    "esbuild": "^0.27.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.943.0",
+    "@aws-sdk/s3-request-presigner": "^3.943.0",
+    "@types/pg": "^8.15.6",
+    "ioredis": "^5.8.2",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.2.0",
+    "pg": "^8.16.3",
+    "simple-git": "^3.22.0",
+    "stripe": "^20.0.0",
+    "ws": "^8.18.0"
+  }
+}

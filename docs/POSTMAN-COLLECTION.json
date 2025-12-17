@@ -1,0 +1,1185 @@
+{
+	"info": {
+		"_postman_id": "bec3c231-efb3-410d-9dc8-e352ed55e6f0",
+		"name": "UBL API Cookbook",
+		"description": "Universal Business Ledger API - A comprehensive collection of API endpoints for managing entities, wallets, agreements, AI agents, watchers, daemons, governance, and cross-realm operations.\n\n## Overview\n\nThe UBL API is a universal semantic ledger that provides a unified interface for managing business entities, financial transactions, agreements, AI agents, and governance operations. All operations are performed through \"intents\" - declarative requests that describe what you want to accomplish.\n\n## Getting Started\n\n1. **Authentication**: Obtain an API key using the \"Create API Key\" request in the Authentication folder\n2. **Set Variables**: Configure `baseUrl`, `apiKey`, and `realm` in your environment\n3. **Register Entities**: Start by registering persons or organizations\n4. **Create Wallets**: Set up wallets for financial operations\n5. **Execute Intents**: Use the various intent endpoints to perform operations\n\n## Common Error Codes\n\n- **401 Unauthorized**: Invalid or missing API key. Check your `x-api-key` header\n- **403 Forbidden**: No permission for this action. Verify your ABAC (Attribute-Based Access Control) permissions\n- **404 Not Found**: The requested entity does not exist in the specified realm\n- **422 Validation Error**: Invalid payload data. Check the request body format and required fields\n- **429 Rate Limited**: Too many requests. Implement exponential backoff and retry logic\n- **500 Internal Error**: Server error. Contact support if the issue persists\n\n## Best Practices\n\n### Idempotency\nFor critical operations (especially transfers and financial transactions), use idempotency keys to prevent duplicate processing:\n\n```json\n{\n  \"intent\": \"transfer:credits\",\n  \"realm\": \"{{realm}}\",\n  \"idempotencyKey\": \"unique-key-123\",\n  \"payload\": {...}\n}\n```\n\n### Batch Operations\nUse the `/batch` endpoint to execute multiple intents in a single request. This reduces network overhead and ensures atomic execution:\n- Keep batch sizes between 10-50 intents\n- All intents must belong to the same realm\n- Handle partial failures gracefully\n\n### Pagination\nFor query operations, use pagination parameters to manage large result sets:\n- `limit`: Number of results to return (default: 50, max: 1000)\n- `offset`: Number of results to skip\n- `orderBy`: Field to sort by\n- `order`: Sort direction (\"asc\" or \"desc\")\n\n### Real-time Updates\nUse WebSocket connections for real-time event notifications instead of polling. See the \"WebSocket (Real-time)\" folder for examples.\n\n## Workflow Examples\n\nComplete workflow examples are available in each folder:\n- **Entities**: Register persons and organizations\n- **Wallets & Credits**: Create wallets, deposit, and transfer credits\n- **Agreements**: Propose, consent to, and terminate agreements\n- **Queries**: Search and retrieve entity information\n- **Cross-Realm**: Transfer entities and credits across realms\n- **Governance**: Propose laws, vote, and execute governance actions\n\nFor more information, visit the [UBL API Documentation](https://docs.ubl.example.com)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "41732268"
+	},
+	"item": [
+		{
+			"name": "Setup & Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Check if the API server is running and healthy. No authentication required. This is useful for monitoring and health checks.\n\n**Best Practices:**\n- Use for uptime monitoring\n- Implement in CI/CD pipelines\n- Set up alerts for failed health checks\n- Check before executing critical operations\n\n**Response Codes:**\n- 200: Server is healthy\n- 500: Server has issues"
+					},
+					"response": []
+				}
+			],
+			"description": "Health check and system status endpoints"
+		},
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Create API Key",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{masterApiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"intent\": \"create-api-key\",\n  \"realm\": \"{{realm}}\",\n  \"payload\": {\n    \"name\": \"my-app-key\",\n    \"permissions\": [\"read\", \"write\"]\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						},
+						"description": "Create a new API key for authentication. Requires a master API key to execute.\n\n**Best Practices:**\n- Store API keys securely (use environment variables)\n- Create separate keys for different environments\n- Set appropriate permissions and scopes\n- Rotate keys regularly for security\n- Never commit keys to version control\n\n**Error Handling:**\n- 401: Invalid master API key\n- 403: No permission to create API keys\n- 422: Invalid key configuration\n- 429: Rate limited"
+					},
+					"response": []
+				}
+			],
+			"description": "API key creation and management"
+		},
+		{
+			"name": "Entities",
+			"item": [
+				{
+					"name": "Register Person",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"intent\": \"register-person\",\n  \"realm\": \"{{realm}}\",\n  \"payload\": {\n    \"name\": \"Alice\",\n    \"email\": \"alice@example.com\",\n    \"metadata\": {}\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						},
+						"description": "Register a new person entity in the ledger. This is typically the first step in onboarding individual users.\n\n**Best Practices:**\n- Validate email and phone formats before submission\n- Store the returned entity ID for future operations\n- Consider using idempotency keys for registration\n- Ensure GDPR/privacy compliance for personal data\n\n**Error Handling:**\n- 401: Invalid API key\n- 403: No permission to register entities\n- 422: Invalid person data (check required fields)\n- 429: Rate limited\n- 500: Server error - retry with idempotency key"
+					},
+					"response": []
+				},
+				{
+					"name": "Register Organization",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"intent\": \"register-organization\",\n  \"realm\": \"{{realm}}\",\n  \"payload\": {\n    \"name\": \"Acme Corp\",\n    \"type\": \"corporation\",\n    \"metadata\": {}\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						},
+						"description": "Register a new organization entity in the ledger. Organizations can have multiple members and hierarchical structures.\n\n**Best Practices:**\n- Provide complete organization details for better governance\n- Store the returned entity ID for member management\n- Use idempotency keys to prevent duplicate registrations\n- Link organization to appropriate realm\n\n**Error Handling:**\n- 401: Invalid API key\n- 403: No permission to register organizations\n- 422: Invalid organization data\n- 429: Rate limited\n- 500: Server error - retry with idempotency key"
+					},
+					"response": []
+				}
+			],
+			"description": "Register and manage persons and organizations"
+		},
+		{
+			"name": "Wallets & Credits",
+			"item": [
+				{
+					"name": "Create Wallet",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"intent\": \"create-wallet\",\n  \"realm\": \"{{realm}}\",\n  \"payload\": {\n    \"entityId\": \"entity-123\",\n    \"currency\": \"USD\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						},
+						"description": "Create a new wallet for an entity. Wallets are required for all financial operations including deposits, transfers, and balance queries.\n\n**Best Practices:**\n- Create wallets immediately after entity registration\n- Store wallet IDs securely\n- Associate wallets with the correct entity\n- Consider creating separate wallets for different purposes\n\n**Error Handling:**\n- 401: Invalid API key\n- 403: No permission to create wallets\n- 404: Entity not found\n- 422: Invalid wallet configuration\n- 429: Rate limited"
+					},
+					"response": []
+				},
+				{
+					"name": "Deposit Credits",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"intent\": \"deposit\",\n  \"realm\": \"{{realm}}\",\n  \"payload\": {\n    \"walletId\": \"wallet-123\",\n    \"amount\": 1000,\n    \"reason\": \"Initial deposit\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						},
+						"description": "Deposit credits into a wallet. This operation increases the wallet balance.\n\n**Best Practices:**\n- Use idempotency keys to prevent duplicate deposits\n- Validate amount and currency before submission\n- Keep audit trail of all deposits\n- Verify wallet ownership before depositing\n\n**Error Handling:**\n- 401: Invalid API key\n- 403: No permission to deposit\n- 404: Wallet not found\n- 422: Invalid amount or currency\n- 429: Rate limited\n- 500: Server error - retry with same idempotency key"
+					},
+					"response": []
+				},
+				{
+					"name": "Transfer Credits",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"intent\": \"transfer\",\n  \"realm\": \"{{realm}}\",\n  \"payload\": {\n    \"fromWalletId\": \"wallet-123\",\n    \"toWalletId\": \"wallet-456\",\n    \"amount\": 100,\n    \"reason\": \"Payment for services\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						},
+						"description": "Transfer credits between wallets."
+					},
+					"response": []
+				},
+				{
+					"name": "Query Balance",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"intent\": \"query-balance\",\n  \"realm\": \"{{realm}}\",\n  \"payload\": {\n    \"walletId\": \"wallet-123\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						},
+						"description": "Query the current balance of a wallet. This is a read-only operation that returns the available balance and currency information.\n\n**Pagination:**\nFor queries that return multiple results, use pagination parameters:\n- `limit`: Number of results (default: 50, max: 1000)\n- `offset`: Skip results\n- `orderBy`: Sort field\n- `order`: \"asc\" or \"desc\"\n\n**Error Handling:**\n- 401: Invalid API key\n- 403: No permission to view this wallet\n- 404: Wallet not found in realm\n- 429: Rate limited - implement backoff"
+					},
+					"response": []
+				}
+			],
+			"description": "Wallet creation, deposits, transfers, and balance queries"
+		},
+		{
+			"name": "Agreements",
+			"item": [
+				{
+					"name": "Propose Agreement",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"intent\": \"propose-agreement\",\n  \"realm\": \"{{realm}}\",\n  \"payload\": {\n    \"proposerId\": \"entity-123\",\n    \"parties\": [\"entity-123\", \"entity-456\"],\n    \"terms\": \"Service agreement terms\",\n    \"metadata\": {}\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						},
+						"description": "Propose a new agreement between parties. Agreements require consent from all parties before becoming active.\n\n**Best Practices:**\n- Clearly define terms and conditions\n- Specify all parties involved\n- Set appropriate expiration dates\n- Use idempotency keys for proposals\n\n**Error Handling:**\n- 401: Invalid API key\n- 403: No permission to propose agreements\n- 404: Party entity not found\n- 422: Invalid agreement structure\n- 429: Rate limited"
+					},
+					"response": []
+				},
+				{
+					"name": "Consent to Agreement",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"intent\": \"consent-agreement\",\n  \"realm\": \"{{realm}}\",\n  \"payload\": {\n    \"agreementId\": \"agreement-123\",\n    \"entityId\": \"entity-456\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						},
+						"description": "Consent to an existing agreement proposal. All parties must consent before an agreement becomes active.\n\n**Best Practices:**\n- Verify agreement terms before consenting\n- Ensure proper authorization from the consenting party\n- Track consent timestamps for audit purposes\n- Check agreement status before attempting consent\n\n**Error Handling:**\n- 401: Invalid API key\n- 403: No permission to consent (not a party to agreement)\n- 404: Agreement not found\n- 422: Agreement already active or expired\n- 429: Rate limited"
+					},
+					"response": []
+				},
+				{
+					"name": "Terminate Agreement",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"intent\": \"terminate-agreement\",\n  \"realm\": \"{{realm}}\",\n  \"payload\": {\n    \"agreementId\": \"agreement-123\",\n    \"reason\": \"Contract completed\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						},
+						"description": "Terminate an active agreement."
+					},
+					"response": []
+				}
+			],
+			"description": "Propose, consent to, and terminate agreements"
+		},
+		{
+			"name": "Queries",
+			"item": [
+				{
+					"name": "Generic Query",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"query\",\"realm\":\"{{realm}}\",\"payload\":{\"queryType\":\"entities\",\"filters\":{\"type\":\"person\"},\"limit\":10}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						},
+						"description": "Execute a generic query against the ledger. This is a flexible query endpoint that supports filtering, sorting, and pagination.\n\n**Pagination Parameters:**\n```json\n{\n  \"intent\": \"query\",\n  \"realm\": \"{{realm}}\",\n  \"payload\": {\n    \"entityType\": \"wallet\",\n    \"filters\": {...},\n    \"limit\": 50,\n    \"offset\": 0,\n    \"orderBy\": \"createdAt\",\n    \"order\": \"desc\"\n  }\n}\n```\n\n**Best Practices:**\n- Use specific filters to reduce result set size\n- Implement pagination for large datasets\n- Cache results when appropriate\n- Use orderBy for consistent result ordering\n\n**Error Handling:**\n- 401: Invalid API key\n- 403: No permission for query\n- 422: Invalid query syntax\n- 429: Rate limited"
+					},
+					"response": []
+				},
+				{
+					"name": "Explain Entity",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"explain\",\"realm\":\"{{realm}}\",\"payload\":{\"entityId\":\"entity-123\",\"depth\":\"full\"}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "What Can I Do",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"what-can-i-do\",\"realm\":\"{{realm}}\",\"payload\":{\"entityId\":\"entity-123\",\"context\":\"current\"}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Simulate Intent",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"transfer\",\"realm\":\"{{realm}}\",\"payload\":{\"fromWalletId\":\"wallet-123\",\"toWalletId\":\"wallet-456\",\"amount\":100}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/simulate",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"simulate"
+							]
+						},
+						"description": "Simulate an intent before executing it. This allows you to preview the effects without making actual changes to the ledger.\n\n**Best Practices:**\n- Use simulation for testing complex operations\n- Validate payloads before production execution\n- Check for potential errors or conflicts\n- Test permission boundaries safely\n\n**Error Handling:**\n- 401: Invalid API key\n- 403: No permission to simulate\n- 422: Invalid intent structure\n- 429: Rate limited"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Cross-Realm",
+			"item": [
+				{
+					"name": "Establish Trust",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"establish-trust\",\"realm\":\"{{realm}}\",\"payload\":{\"targetRealm\":\"other-realm\",\"trustLevel\":\"full\",\"conditions\":{}}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						},
+						"description": "Establish a trust relationship between two realms. Trust enables cross-realm operations like entity and credit transfers.\n\n**Best Practices:**\n- Define clear trust policies and limitations\n- Document trust scope and permissions\n- Review trust relationships periodically\n- Use governance processes for trust establishment\n\n**Error Handling:**\n- 401: Invalid API key\n- 403: No permission to establish trust\n- 404: Realm not found\n- 422: Invalid trust configuration\n- 429: Rate limited"
+					},
+					"response": []
+				},
+				{
+					"name": "Transfer Entity Cross-Realm",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"transfer-entity\",\"realm\":\"{{realm}}\",\"payload\":{\"entityId\":\"entity-123\",\"targetRealm\":\"other-realm\",\"transferType\":\"permanent\"}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						},
+						"description": "Transfer an entity (person or organization) from one realm to another. This is a cross-realm operation that requires permissions in both realms.\n\n**Best Practices:**\n- Verify entity exists in source realm\n- Ensure target realm accepts the entity type\n- Use idempotency keys for cross-realm operations\n- Handle potential conflicts in target realm\n\n**Error Handling:**\n- 401: Invalid API key\n- 403: No permission in source or target realm\n- 404: Entity or realm not found\n- 422: Invalid transfer configuration\n- 429: Rate limited\n- 500: Server error - retry with idempotency key"
+					},
+					"response": []
+				},
+				{
+					"name": "Transfer Credits Cross-Realm",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"transfer-credits-cross-realm\",\"realm\":\"{{realm}}\",\"payload\":{\"fromWalletId\":\"wallet-123\",\"targetRealm\":\"other-realm\",\"toWalletId\":\"wallet-456\",\"amount\":500}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						},
+						"description": "Transfer credits between wallets across different realms. This requires trust relationships between realms.\n\n**Best Practices:**\n- Verify trust relationship exists between realms\n- Use idempotency keys for all cross-realm transfers\n- Check exchange rates if currencies differ\n- Validate wallet ownership in both realms\n\n**Error Handling:**\n- 401: Invalid API key\n- 403: No trust relationship or insufficient permissions\n- 404: Wallet or realm not found\n- 422: Invalid transfer amount or currency mismatch\n- 429: Rate limited\n- 500: Server error - retry with same idempotency key"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Governance",
+			"item": [
+				{
+					"name": "Propose Law",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"propose-law\",\"realm\":\"{{realm}}\",\"payload\":{\"title\":\"New Regulation\",\"description\":\"Proposed regulation details\",\"proposerId\":\"entity-123\"}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Vote on Law",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"vote\",\"realm\":\"{{realm}}\",\"payload\":{\"proposalId\":\"proposal-123\",\"voterId\":\"entity-456\",\"vote\":\"approve\"}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Executive Action",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"executive-action\",\"realm\":\"{{realm}}\",\"payload\":{\"actionType\":\"emergency-order\",\"description\":\"Emergency action details\",\"executorId\":\"entity-123\"}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "File Judicial Case",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"file-judicial-case\",\"realm\":\"{{realm}}\",\"payload\":{\"plaintiff\":\"entity-123\",\"defendant\":\"entity-456\",\"claim\":\"Contract dispute\",\"evidence\":{}}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Daemons (Consciousness)",
+			"item": [
+				{
+					"name": "Start Daemon",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"start-daemon\",\"realm\":\"{{realm}}\",\"payload\":{\"name\":\"Background Processor\",\"type\":\"task-scheduler\",\"config\":{\"interval\":\"1h\",\"tasks\":[\"cleanup\",\"sync\"]}}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Adjust Budget",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"adjust-budget\",\"realm\":\"{{realm}}\",\"payload\":{\"daemonId\":\"daemon-123\",\"newBudget\":5000}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Stop Daemon",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"stop-daemon\",\"realm\":\"{{realm}}\",\"payload\":{\"daemonId\":\"daemon-123\",\"reason\":\"Maintenance\"}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Watchers (Perception)",
+			"item": [
+				{
+					"name": "Create Watcher",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"create-watcher\",\"realm\":\"{{realm}}\",\"payload\":{\"name\":\"Event Monitor\",\"type\":\"event-stream\",\"config\":{\"source\":\"api-events\",\"filters\":[]}}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Pause Watcher",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"pause-watcher\",\"realm\":\"{{realm}}\",\"payload\":{\"watcherId\":\"watcher-123\"}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Register Shadow Entity",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"register-shadow-entity\",\"realm\":\"{{realm}}\",\"payload\":{\"watcherId\":\"watcher-123\",\"entityType\":\"external-system\",\"entityId\":\"ext-123\",\"metadata\":{}}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Agents (AI)",
+			"item": [
+				{
+					"name": "Register Agent",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"register-agent\",\"realm\":\"{{realm}}\",\"payload\":{\"name\":\"AI Assistant\",\"type\":\"llm\",\"capabilities\":[\"chat\",\"analysis\"],\"metadata\":{}}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Record Trajectory",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"record-trajectory\",\"realm\":\"{{realm}}\",\"payload\":{\"agentId\":\"agent-123\",\"action\":\"performed task\",\"result\":\"success\",\"metadata\":{}}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Constitution",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{apiKey}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"update-constitution\",\"realm\":\"{{realm}}\",\"payload\":{\"agentId\":\"agent-123\",\"constitution\":\"Updated rules and guidelines\",\"version\":\"2.0\"}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "WebSocket (Real-time)",
+			"item": []
+		},
+		{
+			"name": "Advanced Features",
+			"item": [
+				{
+					"name": "Batch Intents",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-api-key",
+								"value": "{{apiKey}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intents\":[{\"intent\":\"record:trajectory\",\"realm\":\"{{realm}}\",\"payload\":{\"agentId\":\"agent-123\",\"action\":\"process_data\",\"timestamp\":\"2024-01-01T00:00:00Z\"}},{\"intent\":\"record:trajectory\",\"realm\":\"{{realm}}\",\"payload\":{\"agentId\":\"agent-456\",\"action\":\"analyze_results\",\"timestamp\":\"2024-01-01T00:01:00Z\"}}]}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/batch",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"batch"
+							]
+						},
+						"description": "Execute multiple intents in a single batch request. This is useful for reducing network overhead when you need to perform multiple operations. All intents in the batch are processed atomically - if one fails, all fail. Each intent in the array follows the same structure as individual intent requests.\n\n**Request Body:**\n```json\n{\n  \"intents\": [\n    {\n      \"intent\": \"record:trajectory\",\n      \"realm\": \"{{realm}}\",\n      \"payload\": {...}\n    },\n    {\n      \"intent\": \"transfer:credits\",\n      \"realm\": \"{{realm}}\",\n      \"payload\": {...}\n    }\n  ]\n}\n```\n\n**Best Practices:**\n- Keep batch sizes reasonable (recommended: 10-50 intents per batch)\n- All intents must belong to the same realm\n- Use idempotency keys for critical operations\n- Handle partial failures gracefully"
+					},
+					"response": []
+				},
+				{
+					"name": "Transfer Credits (with Idempotency)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-api-key",
+								"value": "{{apiKey}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"intent\":\"transfer:credits\",\"realm\":\"{{realm}}\",\"idempotencyKey\":\"transfer-{{$timestamp}}-{{$randomUUID}}\",\"payload\":{\"fromWallet\":\"wallet-source-123\",\"toWallet\":\"wallet-dest-456\",\"amount\":100,\"currency\":\"USD\",\"memo\":\"Payment for services\"}}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/intent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"intent"
+							]
+						},
+						"description": "Example of using idempotency keys with credit transfers. Idempotency keys ensure that duplicate requests (due to network issues or retries) don't result in duplicate transfers.\n\n**How Idempotency Works:**\n- Include a unique `idempotencyKey` in your request\n- If the same key is used again, the API returns the original response without re-executing\n- Use dynamic variables like `{{$timestamp}}` and `{{$randomUUID}}` to generate unique keys\n- Store keys on your side to retry failed requests with the same key\n\n**Best Practices:**\n- Always use idempotency keys for financial operations\n- Keep keys unique per operation (not per retry)\n- Store keys for at least 24 hours to handle delayed retries\n- Use meaningful prefixes (e.g., \"transfer-\", \"deposit-\") for debugging\n\n**Error Handling:**\n- 401: Invalid API key\n- 403: Insufficient permissions or balance\n- 404: Wallet not found\n- 422: Invalid payload (check wallet IDs, amount, currency)\n- 429: Rate limited - implement exponential backoff\n- 500: Server error - retry with same idempotency key"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

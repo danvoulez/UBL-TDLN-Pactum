@@ -1,0 +1,493 @@
+openapi: 3.1.0
+info:
+  title: Universal Business Ledger API
+  description: |
+    # The Universal API
+    
+    **Philosophy: Everything is an intent.**
+    
+    Instead of dozens of endpoints, there is ONE:
+    
+    ```
+    POST /intent
+    {
+      "intent": "what-you-want-to-do",
+      "realm": "your-tenant-id",
+      "actor": { "type": "Entity", "entityId": "who-you-are" },
+      "payload": { ... }
+    }
+    ```
+    
+    The system understands what you want to achieve and routes to the appropriate
+    agreement type, workflow, and validation.
+    
+    ## Intent Categories
+    
+    | Category | Intents |
+    |----------|---------|
+    | **Entity** | `register`, `user:create` |
+    | **Agreement** | `propose`, `consent`, `fulfill`, `terminate` |
+    | **Asset** | `register-asset`, `transfer`, `transition` |
+    | **Query** | `query`, `realm:query`, `apikey:query` |
+    | **Meta** | `explain`, `simulate`, `realm:create`, `apikey:create`, `apikey:revoke` |
+    
+  version: 1.0.0
+  contact:
+    name: Universal Business Ledger
+    url: https://github.com/danvoulez/universal-business-ledger
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://api.example.com
+    description: Production
+
+tags:
+  - name: Intent
+    description: The Universal Endpoint - execute any intent
+  - name: Health
+    description: System health and status
+  - name: Affordances
+    description: Discover available actions
+  - name: Chat
+    description: Conversational AI interface
+  - name: Session
+    description: Conversation session management
+
+paths:
+  /intent:
+    post:
+      operationId: executeIntent
+      summary: Execute any intent
+      description: |
+        The Universal Endpoint. Every operation in the system is an intent.
+        
+        ## Common Intents
+        
+        ### Entity Management
+        - `register` - Register a new entity (person, organization, system)
+        - `user:create` - Create a user with credentials
+        
+        ### Agreement Lifecycle
+        - `propose` - Propose a new agreement
+        - `consent` - Give consent to an agreement
+        - `fulfill` - Mark an obligation as fulfilled
+        - `terminate` - Terminate an agreement
+        
+        ### Asset Operations
+        - `register-asset` - Register a new asset
+        - `transfer` - Transfer asset ownership
+        
+        ### Admin Operations
+        - `realm:create` - Create a new realm (tenant)
+        - `apikey:create` - Create an API key
+        - `apikey:revoke` - Revoke an API key
+        
+        ### Queries
+        - `query` - Query entities, agreements, assets
+        - `realm:query` - List realms
+        - `apikey:query` - List API keys
+        
+      tags: [Intent]
+      security:
+        - bearerAuth: []
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntentRequest'
+            examples:
+              register:
+                summary: Register a person
+                value:
+                  intent: register
+                  realm: realm-abc123
+                  actor:
+                    type: Entity
+                    entityId: ent-admin
+                  payload:
+                    entityType: Person
+                    identity:
+                      name: Alice Smith
+                      identifiers:
+                        - scheme: email
+                          value: alice@example.com
+              propose:
+                summary: Propose an employment agreement
+                value:
+                  intent: propose
+                  realm: realm-abc123
+                  actor:
+                    type: Entity
+                    entityId: ent-company
+                  payload:
+                    agreementType: employment
+                    parties:
+                      - entityId: ent-company
+                        role: Employer
+                      - entityId: ent-alice
+                        role: Employee
+                    terms:
+                      description: Employment agreement
+              createRealm:
+                summary: Create a new realm
+                value:
+                  intent: realm:create
+                  actor:
+                    type: System
+                    systemId: admin
+                  payload:
+                    name: Acme Corp
+      responses:
+        '200':
+          description: Intent executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntentResult'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntentResult'
+        '429':
+          description: Rate limit exceeded
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds to wait before retrying
+
+  /:
+    post:
+      operationId: executeIntentRoot
+      summary: Execute any intent (alias for /intent)
+      description: Same as POST /intent. Provided for convenience.
+      tags: [Intent]
+      security:
+        - bearerAuth: []
+        - apiKey: []
+      requestBody:
+        $ref: '#/paths/~1intent/post/requestBody'
+      responses:
+        '200':
+          $ref: '#/paths/~1intent/post/responses/200'
+
+  /health:
+    get:
+      operationId: getHealth
+      summary: Health check
+      description: Returns system health status including event store connectivity.
+      tags: [Health]
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, degraded, error]
+                  service:
+                    type: string
+                    example: antenna
+                  timestamp:
+                    type: integer
+                    description: Unix timestamp in milliseconds
+                  eventStore:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        example: PostgreSQL
+                      healthy:
+                        type: boolean
+
+  /affordances:
+    get:
+      operationId: getAffordances
+      summary: Get available actions
+      description: |
+        Returns the list of intents available for the current context.
+        This is HATEOAS on steroids - driven by workflow state.
+      tags: [Affordances]
+      parameters:
+        - name: realm
+          in: query
+          schema:
+            type: string
+          description: Realm ID to check affordances for
+      responses:
+        '200':
+          description: List of available intents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Affordance'
+
+  /chat:
+    post:
+      operationId: chat
+      summary: Conversational AI interface
+      description: |
+        Send a natural language message and get a response.
+        The AI understands intents and can execute them on your behalf.
+      tags: [Chat]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+                  description: Existing session ID
+                startSession:
+                  type: object
+                  description: Start a new session
+                  properties:
+                    realmId:
+                      type: string
+                    actor:
+                      $ref: '#/components/schemas/ActorReference'
+                message:
+                  type: object
+                  properties:
+                    text:
+                      type: string
+                      description: The message to send
+              oneOf:
+                - required: [sessionId, message]
+                - required: [startSession, message]
+      responses:
+        '200':
+          description: Chat response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+
+  /session/start:
+    post:
+      operationId: startSession
+      summary: Start a conversation session
+      tags: [Session]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [realmId, actor]
+              properties:
+                realmId:
+                  type: string
+                actor:
+                  $ref: '#/components/schemas/ActorReference'
+      responses:
+        '200':
+          description: Session started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessionId:
+                    type: string
+
+  /session/{sessionId}:
+    get:
+      operationId: getSession
+      summary: Get session state
+      tags: [Session]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session state
+        '404':
+          description: Session not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API key as Bearer token
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key in header
+
+  schemas:
+    IntentRequest:
+      type: object
+      required: [intent]
+      properties:
+        intent:
+          type: string
+          description: The intent name (what you want to do)
+          example: register
+        realm:
+          type: string
+          description: The realm (tenant) ID
+          example: realm-abc123
+        actor:
+          $ref: '#/components/schemas/ActorReference'
+        timestamp:
+          type: integer
+          description: When the intent was expressed (for offline-first)
+        payload:
+          type: object
+          description: Intent-specific data
+        idempotencyKey:
+          type: string
+          description: Idempotency key for safe retries
+
+    ActorReference:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [Entity, System, Anonymous]
+        entityId:
+          type: string
+          description: Required when type is Entity
+        systemId:
+          type: string
+          description: Required when type is System
+
+    IntentResult:
+      type: object
+      required: [success, outcome, events, affordances, meta]
+      properties:
+        success:
+          type: boolean
+        outcome:
+          $ref: '#/components/schemas/Outcome'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventReference'
+        affordances:
+          type: array
+          items:
+            $ref: '#/components/schemas/Affordance'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/IntentError'
+        meta:
+          type: object
+          properties:
+            processedAt:
+              type: integer
+            processingTime:
+              type: integer
+            idempotencyKey:
+              type: string
+
+    Outcome:
+      oneOf:
+        - type: object
+          properties:
+            type:
+              const: Created
+            entity:
+              type: object
+            id:
+              type: string
+        - type: object
+          properties:
+            type:
+              const: Updated
+            entity:
+              type: object
+            changes:
+              type: array
+              items:
+                type: string
+        - type: object
+          properties:
+            type:
+              const: Queried
+            results:
+              type: array
+        - type: object
+          properties:
+            type:
+              const: Nothing
+            reason:
+              type: string
+
+    Affordance:
+      type: object
+      required: [intent, description, required]
+      properties:
+        intent:
+          type: string
+        description:
+          type: string
+        required:
+          type: array
+          items:
+            type: string
+        optional:
+          type: array
+          items:
+            type: string
+
+    EventReference:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        sequence:
+          type: string
+
+    IntentError:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        field:
+          type: string
+        suggestion:
+          type: string
+
+    ChatResponse:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        response:
+          type: object
+          properties:
+            text:
+              type: string
+            affordances:
+              type: array
+              items:
+                $ref: '#/components/schemas/Affordance'
+            suggestions:
+              type: array
+              items:
+                type: string

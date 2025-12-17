@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": false,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "noEmitOnError": false,
+    "noImplicitAny": false
+  },
+  "include": ["core/**/*", "sdk/**/*", "antenna/**/*", "cli/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+
